@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "name": "CloudRunner Z2",
+    "price": 129.99,
+    "category": "Footwear",
+    "description": "Breathable mesh running shoes with memory foam insoles. Perfect for marathon training and daily jogging."
+  },
+  {
+    "id": "2",
+    "name": "EverLast Leather Wallet",
+    "price": 45.00,
+    "category": "Accessories",
+    "description": "Hand-stitched genuine leather bifold wallet with RFID blocking technology and 8 card slots."
+  }
+]
