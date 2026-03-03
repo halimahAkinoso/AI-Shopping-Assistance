@@ -25,7 +25,12 @@ def load_products():
     ids = [p["id"] for p in products]
     # We combine name + description so the AI understands the context
     documents = [f"{p['name']}: {p['description']} Category: {p['category']}" for p in products]
-    metadatas = [{"price": p["price"], "name": p["name"]} for p in products]
+    metadatas = [
+        {
+            "price": p["price"], "name": p["name"],
+            "category": p["category"],
+            "description": p["description"]
+            } for p in products]
 
     # 3. Add to Vector Store
     collection.add(

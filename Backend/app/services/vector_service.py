@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+from chromadb.utils import embedding_functions
+
 import chromadb
 from chromadb.utils import embedding_functions
 import os
