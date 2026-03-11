@@ -7,6 +7,7 @@ class Product(BaseModel):
     price: float
     category: str
     description: str
+    image: Optional[str] = None
 
 class ChatRequest(BaseModel):
     message: str

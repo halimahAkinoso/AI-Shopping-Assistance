@@ -1,18 +1,30 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from app.services.vector_service import search_products
+# allow importing when running as package or from app folder directly
+try:
+    from app.services.vector_service import search_products
+except ImportError:
+    from services.vector_service import search_products
 import json
 from fastapi import FastAPI
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.models.schemas import Product, ChatRequest, ChatResponse
+# schema imports support package vs script execution
+try:
+    from app.models.schemas import Product, ChatRequest, ChatResponse
+except ImportError:
+    from models.schemas import Product, ChatRequest, ChatResponse
 from dotenv import load_dotenv
 import os
 from fastapi.responses import StreamingResponse
 import asyncio
+from pathlib import Path
 
 load_dotenv()
+
+# Get the base directory
+BASE_DIR = Path(__file__).parent.parent
 
 app = FastAPI()
 
@@ -35,7 +47,8 @@ app.add_middleware(
 
 @app.get("/products", response_model=List[Product])
 async def get_products():
-    with open("data/products.json", "r") as f:
+    products_path = BASE_DIR / "data" / "products.json"
+    with open(products_path, "r") as f:
         return json.load(f)
 
 

@@ -1,10 +1,33 @@
-import React, { useState } from "react";
-import { MessageCircle, X, Send, ShoppingCart } from "lucide-react"; // Added ShoppingCart
+import React, { useState, useEffect } from "react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  ShoppingCart,
+  Trash2,
+  Menu,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- PRODUCT CARD COMPONENT ---
-const ProductCard = ({ product }) => (
+// --- PRODUCT CARD COMPONENT (Used in Chat) ---
+const ProductCard = ({ product, onAdd }) => (
   <div className="mt-2 bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition text-gray-800">
+    <div className="aspect-square bg-slate-100 overflow-hidden relative flex items-center justify-center">
+      {product.image ? (
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.src = "https://via.placeholder.com/150?text=No+Image";
+          }}
+        />
+      ) : (
+        <span className="text-slate-300 font-bold uppercase tracking-widest text-[10px]">
+          No Image
+        </span>
+      )}
+    </div>
     <div className="p-3">
       <div className="flex justify-between items-start mb-1">
         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
@@ -13,12 +36,11 @@ const ProductCard = ({ product }) => (
         <span className="font-bold text-sm">${product.price}</span>
       </div>
       <h3 className="font-semibold text-xs mb-1">{product.name}</h3>
-      <p className="text-[11px] text-gray-500 line-clamp-2 mb-2">
-        {product.description}
-      </p>
-      <button className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-1.5 rounded-lg text-xs hover:bg-gray-800 transition">
-        <ShoppingCart size={14} />
-        Add to Cart
+      <button
+        onClick={() => onAdd(product)}
+        className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-1.5 rounded-lg text-xs hover:bg-gray-800 transition"
+      >
+        <ShoppingCart size={14} /> Add
       </button>
     </div>
   </div>
@@ -26,7 +48,11 @@ const ProductCard = ({ product }) => (
 
 function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [allProducts, setAllProducts] = useState([]);
+  const [cart, setCart] = useState([]);
   const [userInput, setUserInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -34,14 +60,40 @@ function App() {
         "Hi! I'm your assistant. How can I help you find something today?",
     },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All Products");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const addToCart = (product) => setCart((prev) => [...prev, product]);
+  const removeFromCart = (index) =>
+    setCart((prev) => prev.filter((_, i) => i !== index));
+  const handleCheckout = () => {
+    setIsCartOpen(false);
+    setIsPaymentOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/products");
+        if (!response.ok) throw new Error("Server down");
+        const data = await response.json();
+        setAllProducts(data);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const filteredProducts =
+    selectedCategory === "All Products"
+      ? allProducts
+      : allProducts.filter((p) => p.category === selectedCategory);
 
   const handleSendMessage = async () => {
     if (!userInput.trim()) return;
-
-    const newMessages = [...messages, { role: "user", content: userInput }];
-    setMessages(newMessages);
     const currentInput = userInput;
+    setMessages((prev) => [...prev, { role: "user", content: currentInput }]);
     setUserInput("");
     setIsLoading(true);
 
@@ -51,9 +103,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: currentInput }),
       });
-
       const data = await response.json();
-
       setMessages((prev) => [
         ...prev,
         {
@@ -63,13 +113,9 @@ function App() {
         },
       ]);
     } catch (error) {
-      console.error("Error:", error);
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "I'm having trouble connecting. Is the backend running?",
-        },
+        { role: "assistant", content: "Error connecting to AI." },
       ]);
     } finally {
       setIsLoading(false);
@@ -77,104 +123,352 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
-      <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 h-screen sticky top-0">
-        <h1 className="font-bold text-2xl text-blue-600 mb-8 tracking-tight">
-          ShopperAI
-        </h1>
-        <nav className="space-y-4">
-          <div className="p-3 bg-blue-50 rounded-lg text-blue-700 font-medium cursor-pointer">
-            Home
-          </div>
-          <div className="p-3 text-gray-600 hover:bg-gray-100 rounded-lg transition cursor-pointer">
-            Categories
-          </div>
-        </nav>
-      </aside>
-
-      <main className="flex-1 p-4 md:p-10 flex items-center justify-center">
-        <div className="max-w-xl text-center">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4">
-            Find your perfect match.
-          </h2>
-          <p className="text-gray-600 text-lg mb-8">
-            Personalized recommendations powered by AI.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 flex flex-col font-sans text-gray-900 relative">
+      <nav className="bg-gradient-to-r from-purple-600 to-blue-600 border-b sticky top-0 z-40 px-6 py-4 flex justify-between items-center shadow-lg">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => setIsChatOpen(true)}
-            className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:bg-blue-700 transition transform hover:-translate-y-0.5"
+            className="lg:hidden text-white hover:text-purple-200 transition"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            Start Chatting
+            <Menu size={24} />
           </button>
+          <h1 className="text-2xl font-black text-white italic">ShopperAI</h1>
         </div>
-      </main>
+        <div
+          className="relative cursor-pointer group"
+          onClick={() => setIsCartOpen(true)}
+        >
+          <ShoppingCart
+            className="text-white group-hover:text-yellow-300 transition"
+            size={28}
+          />
+          {cart.length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-yellow-400 text-purple-900 text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full shadow-lg">
+              {cart.length}
+            </span>
+          )}
+        </div>
+      </nav>
 
-      <button
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-2xl z-50 hover:scale-110 transition active:scale-95"
-      >
-        {isChatOpen ? <X size={28} /> : <MessageCircle size={28} />}
-      </button>
-
+      {/* Mobile Menu */}
       <AnimatePresence>
-        {isChatOpen && (
-          /* FIXED: Used motion.div here */
+        {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed bottom-24 right-4 left-4 md:left-auto md:right-6 md:w-96 h-[550px] bg-white rounded-2xl shadow-2xl border flex flex-col overflow-hidden z-50"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden bg-white border-b shadow-lg overflow-hidden"
           >
-            <div className="bg-blue-600 p-4 text-white font-bold shadow-md">
-              AI Shopping Assistant
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+            <div className="p-6">
+              <h3 className="font-bold text-purple-600 uppercase text-xs tracking-widest mb-4">
+                Categories
+              </h3>
+              <ul className="space-y-2">
+                <li
+                  className={`font-bold p-3 rounded-lg cursor-pointer transition ${selectedCategory === "All Products" ? "bg-purple-100 text-purple-800" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+                  onClick={() => {
+                    setSelectedCategory("All Products");
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
-                  <div
-                    className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm ${msg.role === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-white border text-gray-800 rounded-tl-none"}`}
-                  >
-                    {msg.content}
+                  All Products
+                </li>
+                <li
+                  className={`p-3 cursor-pointer transition ${selectedCategory === "Electronics" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+                  onClick={() => {
+                    setSelectedCategory("Electronics");
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  Electronics
+                </li>
+                <li
+                  className={`p-3 cursor-pointer transition ${selectedCategory === "Footwear" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+                  onClick={() => {
+                    setSelectedCategory("Footwear");
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  Footwear
+                </li>
+              </ul>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                    {/* Render Product Cards if the AI recommended anything */}
-                    {msg.products && msg.products.length > 0 && (
-                      <div className="mt-3 space-y-3">
-                        {msg.products.map((p, i) => (
-                          <ProductCard key={i} product={p} />
-                        ))}
-                      </div>
+      <div className="flex flex-1">
+        <aside className="hidden lg:block w-64 bg-white border-r p-6 h-[calc(100vh-73px)] sticky top-[73px] shadow-lg">
+          <h3 className="font-bold text-purple-600 uppercase text-xs tracking-widest mb-4">
+            Categories
+          </h3>
+          <ul className="space-y-2">
+            <li
+              className={`font-bold p-3 rounded-lg cursor-pointer transition ${selectedCategory === "All Products" ? "bg-purple-100 text-purple-800" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+              onClick={() => setSelectedCategory("All Products")}
+            >
+              All Products
+            </li>
+            <li
+              className={`p-3 cursor-pointer transition ${selectedCategory === "Electronics" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+              onClick={() => setSelectedCategory("Electronics")}
+            >
+              Electronics
+            </li>
+            <li
+              className={`p-3 cursor-pointer transition ${selectedCategory === "Footwear" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+              onClick={() => setSelectedCategory("Footwear")}
+            >
+              Footwear
+            </li>
+          </ul>
+        </aside>
+
+        <main className="flex-1 p-6 md:p-10">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-8">
+              Featured Collection
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-2xl p-6 shadow-lg border border-purple-100 hover:shadow-2xl hover:border-purple-200 transition-all duration-300 group overflow-hidden"
+                >
+                  {/* --- FIXED IMAGE SECTION --- */}
+                  <div className="aspect-square bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl mb-4 overflow-hidden flex items-center justify-center relative">
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/300?text=Image+Not+Found";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-purple-300 font-bold uppercase tracking-widest text-xs">
+                        No Image
+                      </span>
                     )}
+                    <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {product.category}
+                    </div>
+                  </div>
+                  {/* --------------------------- */}
+
+                  <h3 className="font-bold text-gray-800 text-lg group-hover:text-purple-600 transition mb-2">
+                    {product.name}
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+                    {product.description}
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-3xl font-black text-purple-700">
+                      ${product.price}
+                    </span>
+                    <button
+                      onClick={() => addToCart(product)}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg active:scale-95 hover:shadow-xl"
+                    >
+                      Add to Cart
+                    </button>
                   </div>
                 </div>
               ))}
-              {isLoading && (
-                <div className="text-xs text-blue-500 font-medium animate-pulse ml-2">
-                  Assistant is typing...
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Chat Button */}
+      <button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-110 z-50"
+      >
+        <MessageCircle size={24} />
+      </button>
+
+      {/* Cart Modal */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={() => setIsCartOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 flex justify-between items-center">
+                <h3 className="text-xl font-bold">Your Cart</h3>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 max-h-96 overflow-y-auto">
+                {cart.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">
+                    Your cart is empty
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl"
+                      >
+                        <div className="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          ) : (
+                            <span className="text-purple-400 text-xs">Img</span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800">
+                            {item.name}
+                          </h4>
+                          <p className="text-purple-600 font-bold">
+                            ${item.price}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(index)}
+                          className="text-red-500 hover:text-red-700 transition p-2"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {cart.length > 0 && (
+                <div className="border-t p-6 bg-gray-50">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-bold text-gray-800">
+                      Total:
+                    </span>
+                    <span className="text-2xl font-black text-purple-700">
+                      ${cartTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCheckout}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-bold hover:from-purple-700 hover:to-blue-700 transition shadow-lg"
+                  >
+                    Proceed to Payment
+                  </button>
                 </div>
               )}
-            </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <div className="p-4 bg-white border-t flex gap-2">
-              <input
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                placeholder="Ask about shoes, tech..."
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={isLoading}
-                className="bg-blue-600 text-white p-2.5 rounded-xl disabled:opacity-50 hover:bg-blue-700 transition"
-              >
-                <Send size={20} />
-              </button>
-            </div>
+      {/* Chat Modal */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4"
+            onClick={() => setIsChatOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md h-[80vh] shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 flex justify-between items-center rounded-t-2xl">
+                <h3 className="text-lg font-bold">AI Shopping Assistant</h3>
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  className="hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                {messages.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-xs p-3 rounded-2xl ${msg.role === "user" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-800"}`}
+                    >
+                      <p className="text-sm">{msg.content}</p>
+                      {msg.products && msg.products.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {msg.products.map((prod, i) => (
+                            <ProductCard
+                              key={i}
+                              product={prod}
+                              onAdd={addToCart}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 p-3 rounded-2xl">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                        <div
+                          className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-t p-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    placeholder="Ask me about products..."
+                    className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={isLoading}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-2 rounded-xl hover:from-purple-700 hover:to-blue-700 transition disabled:opacity-50"
+                  >
+                    <Send size={20} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
