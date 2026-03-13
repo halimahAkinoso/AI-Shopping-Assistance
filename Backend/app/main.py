@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+from pathlib import Path
+import asyncio
+import re
+from fastapi.responses import StreamingResponse
+import os
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 # allow importing when running as package or from app folder directly
@@ -15,11 +21,44 @@ try:
     from app.models.schemas import Product, ChatRequest, ChatResponse
 except ImportError:
     from models.schemas import Product, ChatRequest, ChatResponse
-from dotenv import load_dotenv
-import os
-from fastapi.responses import StreamingResponse
-import asyncio
-from pathlib import Path
+from typing import List
+
+
+class PaymentRequest(BaseModel):
+    amount: float
+    items: List[Product]
+
+
+# --- PRODUCT QUERY DETECTION ---
+# Only show products when the user's message contains product-related keywords.
+# Everything else (greetings, small talk, thanks, etc.) gets a plain chat reply.
+_PRODUCT_KEYWORDS = {
+    # shopping intent
+    "buy", "shop", "purchase", "order", "price", "cost", "cheap", "expensive",
+    "discount", "sale", "deal", "offer",
+    # product actions
+    "find", "need", "want", "looking", "show", "recommend", "suggest", "search",
+    "available", "stock", "get", "fetch", "list",
+    # categories
+    "electronics", "footwear", "shoes", "sneakers", "boots", "sandals", "loafers",
+    "accessories", "apparel", "clothing", "clothes", "fitness", "home",
+    # specific product types
+    "headphone", "headset", "earphone", "watch", "smartwatch", "keyboard", "mouse",
+    "monitor", "laptop", "charger", "speaker", "bulb", "mic", "microphone", "ssd",
+    "bag", "backpack", "wallet", "belt", "glasses", "stand", "pillow",
+    "jacket", "coat", "shirt", "tee", "trousers", "pants", "shorts", "socks",
+    "yoga", "dumbbell", "kettlebell", "resistance", "tent", "camping", "scale",
+    "purifier", "kettle", "knife", "lamp", "shaver", "lock",
+    "product", "item", "catalog", "collection",
+}
+
+def is_product_query(message: str) -> bool:
+    """Return True only if the message appears to be a product-related request."""
+    words = set(message.lower().split())
+    # Also check substrings for compound words (e.g. "headphones", "sneakers")
+    msg_lower = message.lower()
+    return any(kw in msg_lower for kw in _PRODUCT_KEYWORDS)
+
 
 load_dotenv()
 
@@ -54,6 +93,19 @@ async def get_products():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(request: ChatRequest):
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+    # Only search for products if the message is product-related
+    if not is_product_query(request.message):
+        # Pure conversational message — reply naturally, no product cards
+        prompt = ChatPromptTemplate.from_template(
+            "You are a friendly e-commerce shopping assistant called ShopperAI. "
+            "Reply naturally and helpfully to the user's message: {question}"
+        )
+        chain = prompt | llm
+        ai_answer = chain.invoke({"question": request.message})
+        return ChatResponse(answer=ai_answer.content, recommended_products=[])
+
     # 1. Search Vector DB for relevant products
     results = search_products(request.message, n_results=3)
     context = "\n".join(results['documents'][0])
@@ -81,3 +133,10 @@ async def chat_with_assistant(request: ChatRequest):
 
     # 4. Return the full response as JSON
     return ChatResponse(answer=ai_answer.content, recommended_products=recommended)
+
+
+@app.post("/pay")
+async def process_payment(request: PaymentRequest):
+    # placeholder for payment processing logic
+    # in real app, integrate with Stripe/PayPal etc.
+    return {"status": "success", "message": "Payment processed", "amount": request.amount}

@@ -16,10 +16,14 @@ const ProductCard = ({ product, onAdd }) => (
       {product.image ? (
         <img
           src={product.image}
-          alt={product.name}
+          alt={product.name || "Product"}
           className="w-full h-full object-cover"
           onError={(e) => {
-            e.target.src = "https://via.placeholder.com/150?text=No+Image";
+            // Prevent infinite error loop by removing the src and showing fallback
+            e.target.onerror = null;
+            e.target.style.display = "none";
+            e.target.parentNode.innerHTML =
+              '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f1f5f9"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#94a3b8\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><path d=\'M21 15l-5-5L5 21\'/></svg></div>';
           }}
         />
       ) : (
@@ -33,14 +37,15 @@ const ProductCard = ({ product, onAdd }) => (
         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
           {product.category}
         </span>
-        <span className="font-bold text-sm">${product.price}</span>
+        <span className="font-bold text-sm">₦{Number(product.price).toLocaleString()}</span>
       </div>
-      <h3 className="font-semibold text-xs mb-1">{product.name}</h3>
+      <h3 className="font-semibold text-xs mb-2">{product.name}</h3>
       <button
-        onClick={() => onAdd(product)}
-        className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-1.5 rounded-lg text-xs hover:bg-gray-800 transition"
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onAdd(product); }}
+        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1.5 rounded-lg text-xs hover:from-purple-700 hover:to-blue-700 transition font-semibold"
       >
-        <ShoppingCart size={14} /> Add
+        <ShoppingCart size={14} /> Add to Cart
       </button>
     </div>
   </div>
@@ -61,14 +66,39 @@ function App() {
     },
   ]);
   const [selectedCategory, setSelectedCategory] = useState("All Products");
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const addToCart = (product) => setCart((prev) => [...prev, product]);
   const removeFromCart = (index) =>
     setCart((prev) => prev.filter((_, i) => i !== index));
+  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price), 0);
   const handleCheckout = () => {
     setIsCartOpen(false);
     setIsPaymentOpen(true);
+  };
+
+  const handlePayment = async () => {
+    // call backend to process payment
+    try {
+      const response = await fetch("http://localhost:8000/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: cartTotal, items: cart }),
+      });
+      const data = await response.json();
+      if (data.status === "success") {
+        alert("Payment successful!");
+        setCart([]);
+      } else {
+        alert("Payment failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Payment error");
+    } finally {
+      setIsPaymentOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -164,33 +194,18 @@ function App() {
                 Categories
               </h3>
               <ul className="space-y-2">
-                <li
-                  className={`font-bold p-3 rounded-lg cursor-pointer transition ${selectedCategory === "All Products" ? "bg-purple-100 text-purple-800" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-                  onClick={() => {
-                    setSelectedCategory("All Products");
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  All Products
-                </li>
-                <li
-                  className={`p-3 cursor-pointer transition ${selectedCategory === "Electronics" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-                  onClick={() => {
-                    setSelectedCategory("Electronics");
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  Electronics
-                </li>
-                <li
-                  className={`p-3 cursor-pointer transition ${selectedCategory === "Footwear" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-                  onClick={() => {
-                    setSelectedCategory("Footwear");
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  Footwear
-                </li>
+                {["All Products", "Electronics", "Footwear", "Accessories", "Apparel", "Fitness", "Home"].map((cat) => (
+                  <li
+                    key={cat}
+                    className={`p-3 rounded-lg cursor-pointer transition ${selectedCategory === cat ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    {cat}
+                  </li>
+                ))}
               </ul>
             </div>
           </motion.div>
@@ -203,24 +218,15 @@ function App() {
             Categories
           </h3>
           <ul className="space-y-2">
-            <li
-              className={`font-bold p-3 rounded-lg cursor-pointer transition ${selectedCategory === "All Products" ? "bg-purple-100 text-purple-800" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-              onClick={() => setSelectedCategory("All Products")}
-            >
-              All Products
-            </li>
-            <li
-              className={`p-3 cursor-pointer transition ${selectedCategory === "Electronics" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-              onClick={() => setSelectedCategory("Electronics")}
-            >
-              Electronics
-            </li>
-            <li
-              className={`p-3 cursor-pointer transition ${selectedCategory === "Footwear" ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
-              onClick={() => setSelectedCategory("Footwear")}
-            >
-              Footwear
-            </li>
+            {["All Products", "Electronics", "Footwear", "Accessories", "Apparel", "Fitness", "Home"].map((cat) => (
+              <li
+                key={cat}
+                className={`p-3 rounded-lg cursor-pointer transition ${selectedCategory === cat ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {cat}
+              </li>
+            ))}
           </ul>
         </aside>
 
@@ -266,7 +272,7 @@ function App() {
                   </p>
                   <div className="flex justify-between items-center">
                     <span className="text-3xl font-black text-purple-700">
-                      ${product.price}
+                      ₦{Number(product.price).toLocaleString()}
                     </span>
                     <button
                       onClick={() => addToCart(product)}
@@ -344,7 +350,7 @@ function App() {
                             {item.name}
                           </h4>
                           <p className="text-purple-600 font-bold">
-                            ${item.price}
+                            ₦{Number(item.price).toLocaleString()}
                           </p>
                         </div>
                         <button
@@ -365,7 +371,7 @@ function App() {
                       Total:
                     </span>
                     <span className="text-2xl font-black text-purple-700">
-                      ${cartTotal.toFixed(2)}
+                      ₦{Number(cartTotal).toLocaleString()}
                     </span>
                   </div>
                   <button
@@ -467,6 +473,72 @@ function App() {
                     <Send size={20} />
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {isPaymentOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={() => setIsPaymentOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4">Complete Payment</h3>
+              <p className="mb-4">
+                Total amount:{" "}
+                <span className="font-bold">₦{Number(cartTotal).toLocaleString()}</span>
+              </p>
+              {/* Placeholder form fields */}
+              <div className="space-y-3 mb-6">
+                <input
+                  type="text"
+                  placeholder="Card number"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="MM/YY"
+                    className="flex-1 border border-gray-300 rounded-xl px-4 py-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="CVC"
+                    className="w-24 border border-gray-300 rounded-xl px-4 py-2"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Name on card"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setIsPaymentOpen(false)}
+                  className="px-4 py-2 rounded-xl border"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePayment}
+                  className="px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700"
+                >
+                  Pay Now
+                </button>
               </div>
             </motion.div>
           </motion.div>
