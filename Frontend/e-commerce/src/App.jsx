@@ -23,7 +23,7 @@ const ProductCard = ({ product, onAdd }) => (
             e.target.onerror = null;
             e.target.style.display = "none";
             e.target.parentNode.innerHTML =
-              '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f1f5f9"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#94a3b8\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><path d=\'M21 15l-5-5L5 21\'/></svg></div>';
+              "<div style=\"display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f1f5f9\"><svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='#94a3b8' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='M21 15l-5-5L5 21'/></svg></div>";
           }}
         />
       ) : (
@@ -37,13 +37,19 @@ const ProductCard = ({ product, onAdd }) => (
         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
           {product.category}
         </span>
-        <span className="font-bold text-sm">₦{Number(product.price).toLocaleString()}</span>
+        <span className="font-bold text-sm">
+          ₦{Number(product.price).toLocaleString()}
+        </span>
       </div>
       <h3 className="font-semibold text-xs mb-2">{product.name}</h3>
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); onAdd(product); }}
-        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1.5 rounded-lg text-xs hover:from-purple-700 hover:to-blue-700 transition font-semibold"
+        onClick={(e) => {
+          e.stopPropagation();
+          console.log("Add to cart clicked for:", product);
+          onAdd(product);
+        }}
+        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-1.5 rounded-lg text-xs hover:from-purple-700 hover:to-blue-700 transition font-semibold cursor-pointer"
       >
         <ShoppingCart size={14} /> Add to Cart
       </button>
@@ -69,7 +75,10 @@ function App() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const addToCart = (product) => setCart((prev) => [...prev, product]);
+  const addToCart = (product) => {
+    console.log("Adding to cart:", product);
+    setCart((prev) => [...prev, product]);
+  };
   const removeFromCart = (index) =>
     setCart((prev) => prev.filter((_, i) => i !== index));
   const cartTotal = cart.reduce((sum, item) => sum + Number(item.price), 0);
@@ -194,7 +203,15 @@ function App() {
                 Categories
               </h3>
               <ul className="space-y-2">
-                {["All Products", "Electronics", "Footwear", "Accessories", "Apparel", "Fitness", "Home"].map((cat) => (
+                {[
+                  "All Products",
+                  "Electronics",
+                  "Footwear",
+                  "Accessories",
+                  "Apparel",
+                  "Fitness",
+                  "Home",
+                ].map((cat) => (
                   <li
                     key={cat}
                     className={`p-3 rounded-lg cursor-pointer transition ${selectedCategory === cat ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
@@ -218,7 +235,15 @@ function App() {
             Categories
           </h3>
           <ul className="space-y-2">
-            {["All Products", "Electronics", "Footwear", "Accessories", "Apparel", "Fitness", "Home"].map((cat) => (
+            {[
+              "All Products",
+              "Electronics",
+              "Footwear",
+              "Accessories",
+              "Apparel",
+              "Fitness",
+              "Home",
+            ].map((cat) => (
               <li
                 key={cat}
                 className={`p-3 rounded-lg cursor-pointer transition ${selectedCategory === cat ? "bg-purple-100 text-purple-800 font-bold" : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"}`}
@@ -232,6 +257,23 @@ function App() {
 
         <main className="flex-1 p-6 md:p-10">
           <div className="max-w-7xl mx-auto">
+            {/* Hero Section */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl p-8 md:p-12 mb-12 text-center">
+              <h1 className="text-4xl md:text-5xl font-black mb-4">
+                Welcome to ShopperAI
+              </h1>
+              <p className="text-lg md:text-xl mb-6 opacity-90">
+                Discover amazing products tailored just for you with the power
+                of AI. Chat with our assistant to find exactly what you need!
+              </p>
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className="bg-white text-purple-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition shadow-lg"
+              >
+                Start Chatting
+              </button>
+            </div>
+
             <h2 className="text-3xl font-extrabold text-gray-900 mb-8">
               Featured Collection
             </h2>
@@ -499,7 +541,9 @@ function App() {
               <h3 className="text-xl font-bold mb-4">Complete Payment</h3>
               <p className="mb-4">
                 Total amount:{" "}
-                <span className="font-bold">₦{Number(cartTotal).toLocaleString()}</span>
+                <span className="font-bold">
+                  ₦{Number(cartTotal).toLocaleString()}
+                </span>
               </p>
               {/* Placeholder form fields */}
               <div className="space-y-3 mb-6">
