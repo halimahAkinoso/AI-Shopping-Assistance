@@ -71,10 +71,11 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://ai-shopping-assistance-szna.onrender.com"
 ]
 
 # Allow the deployed frontend URL (set via FRONTEND_URL env var on Render)
-_frontend_url = os.getenv("FRONTEND_URL")
+_frontend_url = os.getenv("https://ai-shopping-assistance-szna.onrender.com")
 if _frontend_url:
     origins.append(_frontend_url)
 
