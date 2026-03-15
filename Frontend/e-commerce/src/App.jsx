@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 import {
   MessageCircle,
   X,
@@ -90,7 +92,7 @@ function App() {
   const handlePayment = async () => {
     // call backend to process payment
     try {
-      const response = await fetch("http://localhost:8000/pay", {
+      const response = await fetch(`${API_BASE}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: cartTotal, items: cart }),
@@ -113,7 +115,7 @@ function App() {
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const response = await fetch("http://localhost:8000/products");
+        const response = await fetch(`${API_BASE}/products`);
         if (!response.ok) throw new Error("Server down");
         const data = await response.json();
         setAllProducts(data);
@@ -137,7 +139,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: currentInput }),

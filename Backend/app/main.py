@@ -73,6 +73,11 @@ origins = [
     "http://127.0.0.1:5173",
 ]
 
+# Allow the deployed frontend URL (set via FRONTEND_URL env var on Render)
+_frontend_url = os.getenv("FRONTEND_URL")
+if _frontend_url:
+    origins.append(_frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
